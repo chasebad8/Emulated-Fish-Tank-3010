@@ -79,14 +79,14 @@ def gatherInfo(s, port, server_address):
 
 #Gathers all important information from the packet
 def breakDownPacket(address, jfile):
-    whatPacket = jfile["packetType"]
-    
     if jfile["packetType"] == "tank":
         addTank(jfile["tank_id"], jfile["name"], jfile["location"], jfile["petType"])
         
-    if jfile["packetType"] == "sensorVal":
+    elif jfile["packetType"] == "sensorVal":
         addSensVal(jfile["tank_id"], jfile["timeRecorded"], jfile["motion"], jfile["temperature"], jfile["targetTemp"], jfile["fed"])
-
+    
+    else:
+        print("JSON packet was not properly received")
     return
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -99,8 +99,9 @@ print('')
 initializeDatabase()
 print('database initialized')
 print('')
-gatherInfo(s, port, server_address)
-print('')
+while True:
+    gatherInfo(s, port, server_address)
+    print('')
 
 s.close()
 

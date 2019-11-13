@@ -6,14 +6,10 @@ from tkinter.ttk import *
 import  tkinter.ttk as ttk
 import sqlite3
 from functools import partial
+import socket, sys, time
+import json
 #from mainDatabase import addTank
 
-                #required database initializations
-connection = sqlite3.connect("projectDataBase.db")#database connection
-                #from lab, to access columns by name
-connection.row_factory = sqlite3.Row
-crs = connection.cursor()#database cursor
-                
 class Application(Tk):
         def __init__(self):
                 #Initializations for the GUI
@@ -104,10 +100,19 @@ class Application(Tk):
                 frameIR.grid(row=1, column=3)
         
         def enterTankInfo(self, entryID, entryName, entryType, entryLocation):
-                #addTank(int(entryID.get()), entryName.get(), entryLocation.get(), entryType.get())
-                crs.execute('''INSERT or IGNORE INTO tanks VALUES(?, ?, ?, ?);''',(int(entryID.get()), entryName.get(), entryLocation.get(), entryType.get()))
-                connection.commit()
-                return        
+            host = 'localHost'
+            textport = 1025
+            
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            port = int(textport)
+            server_address = (host, port)
+
+            data = {"tank_id": int(entryID.get()), "name" : entryName.get(), "location" : entryLocation.get(), "petType": entryType.get(), "packetType": "tank"}
+
+            sendIt = json.dumps(data)
+            s.sendto(str(sendIt).encode('utf-8'), server_address)
+
+            s.close()
 
 root = Application()
 root.mainloop()
