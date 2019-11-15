@@ -8,6 +8,7 @@ import sqlite3
 import random
 import socket, sys, time
 import json
+from datetime import datetime
 #This connects to our main database
 connection = sqlite3.connect("projectDataBase.db")
 
@@ -51,17 +52,16 @@ def printTankList():
     return
 
 def printSensorValList(tank_id):
-    if tank_id == None:
-        crs.execute("SELECT * FROM sensorVals;")
-        for row in crs:
-            print(row)
+    crs.execute("SELECT * FROM sensorVals;")
+    for row in crs:
+        print(row)
     return
 
 #Gets data from UDP connection
 def gatherInfo(s, port, server_address):
     while True:
 
-        print ("Waiting to receive on local port %d" % port)
+        print ("Waiting to receive on port %d" % port)
 
         buf, address = s.recvfrom(port)
         if not len(buf):
@@ -77,6 +77,26 @@ def gatherInfo(s, port, server_address):
       
     return
 
+def sendSensor(address, timeRequested):
+    crs.execute("SELECT * FROM sensorVals WHERE timeRecorded = ?;",(str(timeRequested)))
+    
+    for row in crs:
+        print(row)
+        
+        host = 'localHost'
+        textport = 1025
+                
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        port = int(textport)
+        server_address = (host, port)
+
+        data = {"tank_id": row[0], "timeRecorded" : row[1], "motion" : row[3], "temperature" : row[4], "targetTemp" : row[5], "fed": row[6]}
+
+        sendIt = json.dumps(data)
+        s.sendto(str(sendIt).encode('utf-8'), server_address)
+
+    s.close()
+    return
 #Gathers all important information from the packet
 def breakDownPacket(address, jfile):
     if jfile["packetType"] == "tank":
@@ -85,19 +105,22 @@ def breakDownPacket(address, jfile):
     elif jfile["packetType"] == "sensorVal":
         addSensVal(jfile["tank_id"], jfile["timeRecorded"], jfile["motion"], jfile["temperature"], jfile["targetTemp"], jfile["fed"])
     
+    elif jfile["packetType"] == "requestSensVal":
+        sendSensor(address, jfile["timeRequested"])
+        
     else:
         print("JSON packet was not properly received")
     return
+
+
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 port = 1025
 server_address = ('localhost', port)
 s.bind(server_address)
 
-print('Predetermined local port 1025')
-print('')
 initializeDatabase()
-print('database initialized')
+print('Database Initialized Successfully')
 print('')
 while True:
     gatherInfo(s, port, server_address)
