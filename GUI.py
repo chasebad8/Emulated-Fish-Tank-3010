@@ -8,6 +8,7 @@ import sqlite3
 from functools import partial
 import socket, sys, time
 import json
+from datetime import datetime
 #from mainDatabase import addTank
 
 class Application(Tk):

@@ -20,14 +20,20 @@ def initializeDatabase():
     turnOnForeign = """PRAGMA foreign_keys = ON;"""
     createTanks = """CREATE TABLE IF NOT EXISTS tanks(id INTEGER, name TEXT, location TEXT, petType TEXT, PRIMARY KEY(id));"""
     createSensorVals = """CREATE TABLE IF NOT EXISTS sensorVals(tank_id INTEGER, timeRecorded DATE, motion FLOAT, temperature FLOAT, targetTemp FLOAT, fed BOOLEAN, FOREIGN KEY(tank_id) REFERENCES tanks(id));"""
-
-    #Execute the created commands
-    crs.execute(turnOnForeign)
-    crs.execute(createTanks)
-    crs.execute(createSensorVals)
-    #Save the changes to the files
-    connection.commit()
     
+    try:
+        #Execute the created commands
+        crs.execute(turnOnForeign)
+        crs.execute(createTanks)
+        crs.execute(createSensorVals)
+        #Save the changes to the files
+        connection.commit()
+        
+        print('Database Initialized Successfully')
+    
+    except:
+        print('Database Failed to Initialize')
+        
     return
 
 #Add a new tank entry into the database
@@ -77,7 +83,7 @@ def gatherInfo(s, port, server_address):
       
     return
 
-def sendSensor(address, timeRequested):
+def sendSensorVal(address, timeRequested):
     crs.execute("SELECT * FROM sensorVals WHERE timeRecorded = ?;",(str(timeRequested)))
     
     for row in crs:
@@ -97,6 +103,7 @@ def sendSensor(address, timeRequested):
 
     s.close()
     return
+
 #Gathers all important information from the packet
 def breakDownPacket(address, jfile):
     if jfile["packetType"] == "tank":
@@ -106,25 +113,9 @@ def breakDownPacket(address, jfile):
         addSensVal(jfile["tank_id"], jfile["timeRecorded"], jfile["motion"], jfile["temperature"], jfile["targetTemp"], jfile["fed"])
     
     elif jfile["packetType"] == "requestSensVal":
-        sendSensor(address, jfile["timeRequested"])
+        sendSensorVal(address, jfile["timeRequested"])
         
     else:
         print("JSON packet was not properly received")
     return
-
-
-
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-port = 1025
-server_address = ('localhost', port)
-s.bind(server_address)
-
-initializeDatabase()
-print('Database Initialized Successfully')
-print('')
-while True:
-    gatherInfo(s, port, server_address)
-    print('')
-
-s.close()
 
