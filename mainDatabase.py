@@ -16,6 +16,8 @@ connection = sqlite3.connect("projectDataBase.db")
 crs = connection.cursor()
 
 def initializeDatabase():
+    '''Initialize the database.  Create tables if they do not exist'''
+    
     #Create a new table IF it doesnt exist
     turnOnForeign = """PRAGMA foreign_keys = ON;"""
     createTanks = """CREATE TABLE IF NOT EXISTS tanks(id INTEGER, name TEXT, location TEXT, petType TEXT, PRIMARY KEY(id));"""
@@ -28,40 +30,44 @@ def initializeDatabase():
         crs.execute(createSensorVals)
         #Save the changes to the files
         connection.commit()
-        
-        print('Database Initialized Successfully')
+        return True
     
     except:
-        print('Database Failed to Initialize')
-        
-    return
-
-#Add a new tank entry into the database
+        return False
+    
+def clearTables():
+    crs.execute('''DROP TABLE IF EXISTS tanks;''')
+    crs.execute('''DROP TABLE IF EXISTS sensorVals;''')
+    connection.commit()
+    
 def addTank(tank_id, name, location, petType):
+    '''Add a new tank entry into the database'''
+
     crs.execute('''INSERT or IGNORE INTO tanks VALUES(?, ?, ?, ?);''',(tank_id, name, location, petType))
     connection.commit()
     
-    return
 
 #Add a new sensorValue to the database
 def addSensVal(tank_id, timeRecorded, motion, temperature, targetTemp, fed):
     crs.execute('''INSERT INTO sensorVals VALUES(?, ?, ?, ?, ?, ?);''',(tank_id, timeRecorded, motion, temperature, targetTemp, fed))
     connection.commit()
-    
-    return
 
+#print the tank list
 def printTankList():
     crs.execute("SELECT * FROM tanks;")
+    test = []
     for row in crs:
-        print(row)
-    print("")
-    return
+        #print(row)
+        test.append(row)
+    #print("")
+    return test
 
+#print the snesor value of a certain tank
 def printSensorValList(tank_id):
     crs.execute("SELECT * FROM sensorVals;")
     for row in crs:
         print(row)
-    return
+        
 
 #Gets data from UDP connection
 def gatherInfo(s, port, server_address):
@@ -72,50 +78,54 @@ def gatherInfo(s, port, server_address):
         buf, address = s.recvfrom(port)
         if not len(buf):
             break
-        
+
         print ("Received from %s %s: " % (address, buf ))
-        
         jfile = json.loads(buf)
-        
+
         infoPacket = breakDownPacket(address, jfile)
         
         break
       
-    return
 
+#Send sensor values to GUI or Android app
 def sendSensorVal(address, timeRequested):
-    crs.execute("SELECT * FROM sensorVals WHERE timeRecorded = ?;",(str(timeRequested)))
+    host = 'localHost'
+    textport = 1026
+                
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
+    port = int(textport)
+    server_address = (host, port)
+    
+    print("About to send a value")
+    time.sleep(2)
+
+    crs.execute("SELECT * FROM sensorVals WHERE timeRecorded = ?;",(str(timeRequested)))
     for row in crs:
         print(row)
-        
-        host = 'localHost'
-        textport = 1025
-                
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        port = int(textport)
-        server_address = (host, port)
 
-        data = {"tank_id": row[0], "timeRecorded" : row[1], "motion" : row[3], "temperature" : row[4], "targetTemp" : row[5], "fed": row[6]}
-
+        data = {"tank_id": row[0], "timeRecorded" : row[1], "motion" : row[2], "temperature" : row[3], "targetTemp" : row[4], "fed": row[5]}
         sendIt = json.dumps(data)
         s.sendto(str(sendIt).encode('utf-8'), server_address)
-
     s.close()
-    return
 
-#Gathers all important information from the packet
+#Checks JSON "PacketType" to decide what JSON it is
 def breakDownPacket(address, jfile):
+    #add a new tank entry
     if jfile["packetType"] == "tank":
         addTank(jfile["tank_id"], jfile["name"], jfile["location"], jfile["petType"])
         
+    #Add sensor value entry
     elif jfile["packetType"] == "sensorVal":
+        
         addSensVal(jfile["tank_id"], jfile["timeRecorded"], jfile["motion"], jfile["temperature"], jfile["targetTemp"], jfile["fed"])
     
+    #send sensor vals to GUI or App
     elif jfile["packetType"] == "requestSensVal":
+
         sendSensorVal(address, jfile["timeRequested"])
         
     else:
         print("JSON packet was not properly received")
-    return
+
 
