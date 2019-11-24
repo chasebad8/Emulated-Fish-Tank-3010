@@ -4,6 +4,7 @@
 
 #This file contains 3 different Mocks.
 #The GUI Mock, Arduino Mock, and the Android App Mock
+
 import random
 import mainDatabase as db
 import socket, sys, time
@@ -15,15 +16,18 @@ import threading
 from threading import Thread
 from os import system
 
+#pip install termcolor
+from termcolor import colored
+
 '''This test initializes the database.  The db.initializeDatabase() returns true or false depending on if it properly initialized'''
 def testInitializeDatabase():
     testPass = db.initializeDatabase()
     if testPass == True:
-        print("Test PASSED!")
+        print colored("Test PASSED!", 'green')
         time.sleep(1.5)
         return 1
     else:
-        print("Test FAILED")
+        print colored("Test FAILED", 'red')
         print("The database was not initialized")
         time.sleep(1.5)
         return 0
@@ -42,7 +46,7 @@ def sendValue(data, testNum):
         s.sendto(str(sendIt).encode('utf-8'), server_address)
         s.close()
     except:
-        print("Test FAILED")
+        print colored("Test FAILED", 'red')
         print("Could not send the requested data")
         return 0
 
@@ -71,12 +75,12 @@ def checkDatabaseSensor(data):
         print("Received: ", i[0], i[1], i[2], i[3], i[4], i[5])
         print("")
         if i[0] == data["tank_id"] and  i[1] == data["timeRecorded"] and int(i[2]) == int(data["motion"]) and float(i[3]) == float(data["temperature"]) and float(i[4]) == float(data["targetTemp"]) and i[5] == data["fed"]:
-            print("Test PASSED!")
+            print colored("Test PASSED!", 'green')
             print("")
             time.sleep(1.5)
             return 1
         
-    print("Test FAILED")
+    print colored("Test FAILED", 'red')
     print("The correct values were not in the database")
     print("")
     time.sleep(1.5)
@@ -94,7 +98,7 @@ def checkDatabase(tankID, name, testType):
             if i[0] == tankID:
                 print("Received: ", i[0], i[1], i[2], i[3])
                 print("")
-                print("Test PASSED!")
+                print colored("Test PASSED!", 'green')
                 time.sleep(1.5)
                 return 1
             
@@ -104,7 +108,7 @@ def checkDatabase(tankID, name, testType):
             if temp[0] == tankID and temp[1] != name:
                 print("Received: ", i[0], i[1], i[2], i[3])
                 print("")
-                print("Test PASSED!")
+                print colored("Test PASSED!", 'green')
                 time.sleep(1.5)
                 return 1
             
@@ -114,7 +118,7 @@ def checkDatabase(tankID, name, testType):
                 testPass = True;
                 return 1
     print("")
-    print("Test FAILED")
+    print colored("Test FAILED", 'red')
     print("Could not locate in database")
     time.sleep(1.5)
     return 0
@@ -139,7 +143,7 @@ def receiveTempVal():
             
         except (KeyboardInterrupt):
             print("")
-            print("Test FAILED")
+            print colored("Test FAILED", 'red')
             print("Never received requested sensor values")
             print("")
             time.sleep(1.5)
@@ -147,6 +151,20 @@ def receiveTempVal():
     s.close()
     
     return 0;
+
+def intro():
+    system('clear')
+    print colored("Chase Badalato", "white", attrs=['bold'])
+    print("")
+    time.sleep(0.5)
+    print colored("101072570", "white", attrs=['bold'])
+    print("")
+    time.sleep(0.5)
+    print colored("SYSC3010 Test Cases", "white", attrs=['underline'])
+    print("")
+    time.sleep(0.5)
+    print colored("November 25th 2019", "white", attrs=['underline'])
+    time.sleep(1.5)
 
 #____________________________________________________________
 #MAIN PART OF SCRIPT
@@ -158,7 +176,7 @@ tankID = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 #Tank Values
 petNames = ["Stanley", "Freddy", "Betsy", "Henrietta", "Hank", "George", "Paulene", "Adrian", "Rocky", "Steven"]
 petLocations = ["Main Room", "Back Room", "Cambodia", "Yukon"]
-petTypes = ["Dog", "Cat", "Salamander", "Bird", "Lion", "Squirrel", "Elephant", "Komodo Dragon", "Ant"]
+petTypes = ["Dog", "Cat", "Salamander", "Bird", "Lion", "Squirrel", "Elephant", "Komodo Dragon", "Ant", "Gecko"]
 
 #Sensor Values
 tempVal = ["21.4", "22.0", "23.2", "20.6", "19.9", "21.7", "24.2", "22.5", "18.2", "23.6"]
@@ -169,6 +187,8 @@ targetTempVal = ["21.4", "22.0", "23.2", "20.6", "19.9", "21.7", "24.2", "22.5",
 
 
 testsPassed = 0
+
+intro()
 
 while True:
     system('clear')
@@ -182,25 +202,25 @@ while True:
     valFive = random.randint(0,1)
     
     #Display a UI to choose a test
-    print("Tests Passed so far: " + str(testsPassed))
+    print("Tests Passed so far: " + colored(str(testsPassed), 'cyan'))
     print("Please choose an option below to begin a test:")
     print("")
-    print("GUI and Android App Mock")
+    print colored("GUI and Android App Mock", 'white', attrs=['bold'])
     print("1) Initalize the database")
     print("2) Add a new tank ID and values")
     print("3) Add an existing tank ID and new values (Should not work)")
     print("4) Request time specfic sensor values")
     print("")
-    print("Arduino Mock")
+    print colored("Arduino Mock", 'white', attrs=['bold'])
     print("5) Send sensor values to database")
-    print("6) Database sends target temperature value and if pet should be fed")
+    print("6) Rpi sends target temperature value and if pet should be fed")
     print("")
     print("8) Exit")
     print("___________________________________________________________________")
     print("")
     
     #choice = input("Selection: ")
-    choice = raw_input("Selection: ")
+    choice = raw_input ("Selection: ")
     
     print("")
     #choice = "4"
