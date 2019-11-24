@@ -41,20 +41,21 @@ def sendValue(data, testNum):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     port = int(textport)
     server_address = (host, port)
-    try:
+    try: #Try to send data to the main database code
         sendIt = json.dumps(data)
         s.sendto(str(sendIt).encode('utf-8'), server_address)
         s.close()
-    except:
+    except: #If the data cannot be sent it fails
         print colored("Test FAILED", 'red')
         print("Could not send the requested data")
         return 0
 
+    #Depending on what choice was made, after sending the code must call different functions
     if testNum == 1:
+        #Must wait for the other code to actually append the sent data to the database
         time.sleep(1.5)
         return checkDatabase(data["tank_id"], data["name"], 3)        
     if testNum == 2:
-        #needs to wait for the database program to actullay append to the database
         time.sleep(1.5)
         return checkDatabase(data["tank_id"], data["name"], 1)
     elif testNum == 3:
@@ -68,6 +69,7 @@ def sendValue(data, testNum):
     else:
         return
 
+'''Check that the sensor values sent from the "Arduino" get saved into the database'''
 def checkDatabaseSensor(data):
     time.sleep(0.5)
     allSens = db.printSensorValList(data["tank_id"])
@@ -112,18 +114,20 @@ def checkDatabase(tankID, name, testType):
                 time.sleep(1.5)
                 return 1
             
-        #When we just want to privatly look in database
+        #When we just want to privatly look in database without printing
         elif testType == 3:
             if i[0] == tankID:
                 testPass = True;
                 return 1
+    #If the fucntion has not returned after the for loop, there must be no entries, or an error occured
     print("")
     print colored("Test FAILED", 'red')
     print("Could not locate in database")
     time.sleep(1.5)
     return 0
 
-'''Wait to receive requested temperature values from the database'''
+'''Wait to receive requested temperature values from the database
+This is checking if the mainDatabase can send out JSON to Arduino, GUI, and Android App'''
 def receiveTempVal():
     host = 'localHost'
     textport = 1026
@@ -152,6 +156,7 @@ def receiveTempVal():
     
     return 0;
 
+'''Super cool intro because I got bored...very fun'''
 def intro():
     system('clear')
     print colored("Chase Badalato", "white", attrs=['bold'])
@@ -173,16 +178,16 @@ def intro():
 #The following are values that are randomly created to test against the mainDatabase code
 tankID = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-#Tank Values
+#Random Tank Values
 petNames = ["Stanley", "Freddy", "Betsy", "Henrietta", "Hank", "George", "Paulene", "Adrian", "Rocky", "Steven"]
 petLocations = ["Main Room", "Back Room", "Cambodia", "Yukon"]
 petTypes = ["Dog", "Cat", "Salamander", "Bird", "Lion", "Squirrel", "Elephant", "Komodo Dragon", "Ant", "Gecko"]
 
-#Sensor Values
+#Random Sensor Values
 tempVal = ["21.4", "22.0", "23.2", "20.6", "19.9", "21.7", "24.2", "22.5", "18.2", "23.6"]
 fedVal = [1, 0]
 motionVal = ["0", "8", "3", "9", "13", "18", "4", "15", "22", "24"]
-timeRecordedVal = ["2019-01-06 15:06", "2018-03-17 8:32", "2019-04-19 4:20", "2019-09-3 13:56", "2018-06-16 12:24", "2019-11-17 21:43", "2019-7-24 6:30", "2016-12-20 0:23", "2017-2-28 14:41", "2019-08-29 7:45"]
+timeRecordedVal = ["2019-01-06_15:06", "2018-03-17_8:32", "2019-04-19_4:20", "2019-09-3_13:56", "2018-06-16_12:24", "2019-11-17_21:43", "2019-7-24_6:30", "2016-12-20_0:23", "2017-2-28_14:41", "2019-08-29_7:45"]
 targetTempVal = ["21.4", "22.0", "23.2", "20.6", "19.9", "21.7", "24.2", "22.5", "18.2", "23.6"]
 
 
@@ -194,7 +199,7 @@ while True:
     system('clear')
     print("___________________________________________________________________")
     print("")
-    #Randomly pick one of the values
+    #Randomly generate numbers
     valOne = random.randint(0,9)
     valTwo = random.randint(0,9)
     valThree = random.randint(0,3)
@@ -221,15 +226,17 @@ while True:
     
     #choice = input("Selection: ")
     choice = raw_input ("Selection: ")
-    
     print("")
-    #choice = "4"
     
+    #Make decisions based on user input
+    
+    #Init DB
     if choice == "1":
         db.clearTables()
         testsPassed += testInitializeDatabase()
         print("")
-        
+    
+    #Add Tank 
     elif choice == "2":
         db.clearTables()
         db.initializeDatabase()
@@ -238,9 +245,11 @@ while True:
         testsPassed += sendValue(data, 2)
         print("")
         
+    #Add Tank w/ existing ID
     elif choice == "3":
         db.clearTables()
         db.initializeDatabase()
+        #Add a tank
         data = {"tank_id" : tankID[valOne], "name" : petNames[valTwo], "location" : petLocations[valThree], "petType" : petTypes[valFour], "packetType" : "tank"}
         print("Expected: ", tankID[valOne],  petNames[valTwo], petLocations[valThree], petTypes[valFour])
         sendValue(data, 1)
@@ -249,16 +258,20 @@ while True:
         valTwo = random.randint(0,9)
         valThree = random.randint(0,3)
         valFour = random.randint(0,9)
+        
+        #TRY to add a tank with same ID but new values
         data = {"tank_id" : tankID[valOne], "name" : petNames[valTwo], "location" : petLocations[valThree], "petType" : petTypes[valFour], "packetType" : "tank"}
         testsPassed += sendValue(data, 3)
         print("")
-        
+    
+    #Create 10 random sensors values and then search for 1 specfic one, and have it send it back
     elif choice == "4":
         db.clearTables()
         db.initializeDatabase()
         data = {"tank_id" : 0, "name" : petNames[valTwo], "location" : petLocations[valThree], "petType" : petTypes[valFour], "packetType" : "tank"}
         sendValue(data, None)
-        
+        idVals = []
+        test = []
         for i in range(0, 10):
             #Generate random sensor values 10 times
             valOne = random.randint(0,9)
@@ -267,11 +280,21 @@ while True:
             valFour = random.randint(0,9)
             valFive = random.randint(0,1)
             
-            data = {"tank_id": 0, "timeRecorded" : 2, "motion" : motionVal[valTwo], "temperature" : tempVal[valThree], "targetTemp" : targetTempVal[valFour], "fed": fedVal[valFive], "packetType": "sensorVal"}
+            idVals.append(timeRecordedVal[valOne])
+            
+            data = {"tank_id": 0, "timeRecorded" : timeRecordedVal[valOne], "motion" : motionVal[valTwo], "temperature" : tempVal[valThree], "targetTemp" : targetTempVal[valFour], "fed": fedVal[valFive], "packetType": "sensorVal"}
+            test.append(data)
             sendValue(data, None)
+  
+        randomExistingID = random.randint(0,9)
         
-        
-        data = {"timeRequested" : 2, "packetType" : "requestSensVal"}
+        print("Expected: Sensor values from time: " + idVals[randomExistingID])
+        print("")
+        for temp in test:
+            if temp["timeRecorded"] == idVals[randomExistingID]:
+                print(temp["tank_id"], temp["timeRecorded"], temp["motion"], temp["temperature"], temp["targetTemp"], temp["fed"])
+        print("")
+        data = {"timeRequested" : idVals[randomExistingID], "packetType" : "requestSensVal"}
         testsPassed += sendValue(data, 4)
     
     elif choice == "5":

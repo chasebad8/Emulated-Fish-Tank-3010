@@ -22,7 +22,7 @@ def initializeDatabase():
     #Create a new table IF it doesnt exist
     turnOnForeign = """PRAGMA foreign_keys = ON;"""
     createTanks = """CREATE TABLE IF NOT EXISTS tanks(id INTEGER, name TEXT, location TEXT, petType TEXT, PRIMARY KEY(id));"""
-    createSensorVals = """CREATE TABLE IF NOT EXISTS sensorVals(tank_id INTEGER, timeRecorded DATE, motion INTEGER, temperature FLOAT, targetTemp FLOAT, fed BOOLEAN, FOREIGN KEY(tank_id) REFERENCES tanks(id));"""
+    createSensorVals = """CREATE TABLE IF NOT EXISTS sensorVals(tank_id INTEGER, timeRecorded TEXT, motion INTEGER, temperature FLOAT, targetTemp FLOAT, fed BOOLEAN, FOREIGN KEY(tank_id) REFERENCES tanks(id));"""
     
     try:
         #Execute the created commands
@@ -101,10 +101,10 @@ def sendSensorVal(address, timeRequested):
     port = int(textport)
     server_address = (host, port)
     
-    print("About to send a value")
+    print("About to send the following values")
     time.sleep(2)
 
-    crs.execute("SELECT * FROM sensorVals WHERE timeRecorded = ?;",(str(timeRequested)))
+    crs.execute("SELECT * FROM sensorVals WHERE timeRecorded = ?;",[(str(timeRequested))])
     for row in crs:
         print(row)
 
