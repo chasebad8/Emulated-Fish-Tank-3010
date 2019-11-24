@@ -9,6 +9,7 @@ import random
 import socket, sys, time
 import json
 from datetime import datetime
+#import thread
 #This connects to our main database
 connection = sqlite3.connect("projectDataBase.db")
 
@@ -21,7 +22,7 @@ def initializeDatabase():
     #Create a new table IF it doesnt exist
     turnOnForeign = """PRAGMA foreign_keys = ON;"""
     createTanks = """CREATE TABLE IF NOT EXISTS tanks(id INTEGER, name TEXT, location TEXT, petType TEXT, PRIMARY KEY(id));"""
-    createSensorVals = """CREATE TABLE IF NOT EXISTS sensorVals(tank_id INTEGER, timeRecorded DATE, motion FLOAT, temperature FLOAT, targetTemp FLOAT, fed BOOLEAN, FOREIGN KEY(tank_id) REFERENCES tanks(id));"""
+    createSensorVals = """CREATE TABLE IF NOT EXISTS sensorVals(tank_id INTEGER, timeRecorded DATE, motion INTEGER, temperature FLOAT, targetTemp FLOAT, fed BOOLEAN, FOREIGN KEY(tank_id) REFERENCES tanks(id));"""
     
     try:
         #Execute the created commands
@@ -36,8 +37,8 @@ def initializeDatabase():
         return False
     
 def clearTables():
-    crs.execute('''DROP TABLE IF EXISTS tanks;''')
     crs.execute('''DROP TABLE IF EXISTS sensorVals;''')
+    crs.execute('''DROP TABLE IF EXISTS tanks;''')
     connection.commit()
     
 def addTank(tank_id, name, location, petType):
@@ -55,20 +56,23 @@ def addSensVal(tank_id, timeRecorded, motion, temperature, targetTemp, fed):
 #print the tank list
 def printTankList():
     crs.execute("SELECT * FROM tanks;")
-    test = []
+    tankVals = []
     for row in crs:
         #print(row)
-        test.append(row)
+        tankVals.append(row)
     #print("")
-    return test
+    return tankVals
 
 #print the snesor value of a certain tank
 def printSensorValList(tank_id):
     crs.execute("SELECT * FROM sensorVals;")
+    sensVals = []
     for row in crs:
-        print(row)
+        #print(row)
+        sensVals.append(row)
         
-
+    return sensVals
+        
 #Gets data from UDP connection
 def gatherInfo(s, port, server_address):
     while True:
@@ -109,6 +113,27 @@ def sendSensorVal(address, timeRequested):
         s.sendto(str(sendIt).encode('utf-8'), server_address)
     s.close()
 
+def sendArduinoVal(address, fed, targetTemp):
+    time.sleep(2)
+    
+    host = 'localHost'
+    textport = 1026
+                
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    
+    port = int(textport)
+    server_address = (host, port)
+
+    data = {"targetTemp" : targetTemp, "fed": fed}
+    sendIt = json.dumps(data)
+    
+    try:
+        s.sendto(str(sendIt).encode('utf-8'), server_address)
+    
+    except:
+        print("No Connection :/")
+    s.close()
+    
 #Checks JSON "PacketType" to decide what JSON it is
 def breakDownPacket(address, jfile):
     #add a new tank entry
@@ -124,6 +149,9 @@ def breakDownPacket(address, jfile):
     elif jfile["packetType"] == "requestSensVal":
 
         sendSensorVal(address, jfile["timeRequested"])
+    
+    elif jfile["packetType"] == "arduinoVal":
+        sendArduinoVal(address, jfile["fed"], jfile["targetTemp"])
         
     else:
         print("JSON packet was not properly received")
