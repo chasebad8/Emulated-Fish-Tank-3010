@@ -19,7 +19,9 @@ class ReceiveMessage():
         self.server_address = ('localhost', self.port)
         self.s.bind(self.server_address)
         self.running = True
-        self.values = {}
+        self.values = [[]]
+        self.numToReceive = 0
+        self.numReceived = 0
 
     def terminate(self):
         self.running = False
@@ -27,18 +29,21 @@ class ReceiveMessage():
     def run(self):
         # do stuff
         while self.running:
-            print("Hello world, threading is working")
-            time.sleep(1)
-            # print("Waiting to receive on local port %d" % port)
-            # buf, address = s.recvfrom(port)
-            # if not len(buf):
-            #     break
-            #
-            # print("Received from %s %s: " % (address, buf))
-            #
-            # self.values = json.loads(buf)
-            #
-            # self.running = False
+            # print("Print message from 1st thread") #TESTING
+            # time.sleep(1)
+            print("Waiting to receive on local port %d" % port)
+            buf, address = s.recvfrom(port)
+            if not len(buf):
+                break
+
+            print("Received from %s %s: " % (address, buf))
+            self.numReceived += 1
+
+            self.values.append(json.loads(buf)) #IF A RECORD DOESNT EXIST, DOES ANYTHING GET RETURNED OVER UDP???
+
+            if self.numReceived == self.numToReceive:
+                self.running = False
+
 
 
 class Application(Tk):
@@ -147,8 +152,8 @@ class Application(Tk):
 
         # submitRecordsButton = ttk.Button(tab2, text="Submit", command=partial(self.fetchRecords, tab2))
         submitRecordsButton = ttk.Button(tab2, text="Submit",
-                                         command=partial(self.drawTempGraph, tempFrame, [3,2,5,4,6,1,8,7],
-                                                         [1, 2, 3, 4, 5, 6, 7, 8]))
+                                         command=partial(self.drawTempGraph, tempFrame, [1, 2, 3, 4, 5, 6, 7, 8],
+                                                         [4, 5, 3, 2, 6, 7, 1, 8]))
         submitRecordsButton.grid(row=9, column=0)
 
         # THIRD TAB CONTENTS -------------------------------------------------------------------------------------------
@@ -175,6 +180,26 @@ class Application(Tk):
         frameIR = ttk.Frame(tab3)
         frameIR.grid(row=1, column=3)
 
+        #TEST TAB CONTENTS --------------------------------------------------------------------------------------------
+        testTab = ttk.Frame(tabControl)
+        tabControl.add(testTab, text="TESTING")
+        graphFrame1 = ttk.Frame(testTab)
+        graphFrame1.grid(row=0,column=1)
+        graphFrame2 = ttk.Frame(testTab)
+        graphFrame2.grid(row=0, column=2)
+        graphFrame3 = ttk.Frame(testTab)
+        graphFrame3.grid(row=0, column=3)
+
+        testGraphButton = ttk.Button(testTab, text="testGraphs",
+                                     command=partial(self.testGraphs,graphFrame1,[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],graphFrame2,
+                                                     [-1,-2,-3,-4,-5,-6,-7,-8],[1,2,3,4,5,6,7,8],graphFrame3,[1,2,3,4,5,6,7,8],[1,2,3,4]))
+        testGraphButton.grid(row=0, column=0)
+        testThreadingButton = ttk.Button(testTab, text="testThreading",command=self.testThreading)
+        testThreadingButton.grid(row=1, column=0)
+
+        testtempControlButton = ttk.Button(testTab, text="testTemperatureControl", command=partial(self.testTemperatureControl,20,21,19,21,25,21))
+        testtempControlButton.grid(row=4, column=0)
+
     def enterTankInfo(self, entryID, entryName, entryType, entryLocation):
         host = 'localHost'
         textport = 1025
@@ -191,27 +216,37 @@ class Application(Tk):
 
         s.close()
 
-    def fetchRecords(self, tab):
+    def fetchRecords(self, tank1, year1, month1, day1, week1, hour1, tank2, year2, month2, day2, hour2):
         # REQUEST FOR SENSOR VALS
 
         # start a thread for a udpReceiver which will wait for the sensor values to be sent
         udpReceive = ReceiveMessage()
         udpReceiveThread = Thread(target=udpReceive.run)
+        numToReceive = hour2 - hour1 #the number of entries (x values) to be expected based on the range of time given
+        udpReceive.numToReceive = numToReceive
         udpReceiveThread.start()
+        for x in range(0, numToReceive):
+            
         # while udpReceive.running:
         #     #do nothing
+        #
         # sensorRecords = udpReceive.values
-        # udpReceive.terminate()
+        udpReceive.terminate()
         #return sensorRecords
+        # self.drawTempGraph(tab)
+        # self.drawMotionGrpah(tab)
 
     def drawTempGraph(self, frame, xVals, yVals):
-        # TEMPERATURE GRAPH
-        tempGraph = Figure(figsize=(5, 5), dpi=75)
-        tempPlot = tempGraph.add_subplot(111)
-        tempPlot.plot(xVals, yVals)
-        tempCanvas = FigureCanvasTkAgg(tempGraph, frame)
-        tempCanvas.draw()
-        tempCanvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        try:
+            # TEMPERATURE GRAPH
+            tempGraph = Figure(figsize=(5, 5), dpi=75)
+            tempPlot = tempGraph.add_subplot(111)
+            tempPlot.plot(xVals, yVals)
+            tempCanvas = FigureCanvasTkAgg(tempGraph, frame)
+            tempCanvas.draw()
+            tempCanvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        except:
+            print("An error occurred and the graph with x and y values of", xVals,"and", yVals, "could not be printed")
 
     def drawHumidGraph(self, frame, xVals, yVals):
         # HUMIDITY GRAPH
@@ -239,6 +274,46 @@ class Application(Tk):
         irCanvas = FigureCanvasTkAgg(irGraph, irFrame)
         irCanvas.draw()
         irCanvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    #determine if the current temperature of tank is within acceptable range (+-1 of targetTemp)
+    def temperatureControl(self, currTemp, targetTemp):
+        if ((currTemp > targetTemp+1) or (currTemp < targetTemp-1)):
+            return 0#failed check
+        else:
+            return 1#within range, check passed
+
+
+    #TESTING FUNCTIONS --------------------------------------------------------------------
+    def testGraphs(self, frame1, xVals1, yVals1, frame2, xVals2, yVals2, frame3, xVals3, yVals3):
+        self.drawTempGraph(frame1, xVals1, yVals1)
+        self.drawTempGraph(frame2, xVals2, yVals2)
+        self.drawTempGraph(frame3, xVals3, yVals3)
+
+    def testThreading(self):
+        udpReceive = ReceiveMessage()
+        udpReceiveThread = Thread(target=udpReceive.run)
+        udpReceiveThread.start()
+        for x in range(0,10):
+            print("Message from main thread")
+            time.sleep(1.5)
+        udpReceive.terminate()
+
+    def testTemperatureControl(self, currTemp1, targetTemp1, currTemp2, targetTemp2, currTemp3, targetTemp3):
+        result = self.temperatureControl(currTemp1, targetTemp1)
+        if result==1:
+            print("The current temperature ", currTemp1, " is within the acceptable range")
+        else:
+            print("The current temperature ", currTemp1, " is not within the acceptable range")
+        result2 = self.temperatureControl(currTemp2, targetTemp2)
+        if result2 == 1:
+            print("The current temperature ", currTemp2, " is within the acceptable range")
+        else:
+            print("The current temperature ", currTemp2, " is not within the acceptable range")
+        result3 = self.temperatureControl(currTemp3, targetTemp3)
+        if result2 == 1:
+            print("The current temperature ", currTemp3, " is within the acceptable range")
+        else:
+            print("The current temperature ", currTemp3, " is not within the acceptable range")
 
 
 root = Application()
