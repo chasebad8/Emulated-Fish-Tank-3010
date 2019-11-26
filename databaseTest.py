@@ -36,7 +36,7 @@ def testInitializeDatabase():
 '''Depending on what test is being run it will call specific functions to deal with the tests'''
 def sendValue(data, testNum):
     host = 'localHost'
-    textport = 1025
+    textport = 1027
     
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     port = int(textport)
@@ -220,6 +220,7 @@ while True:
     print("5) Send sensor values to database")
     print("6) Rpi sends target temperature value and if pet should be fed")
     print("")
+    print("7) Send a feed and target temp value")
     print("8) Exit")
     print("___________________________________________________________________")
     print("")
@@ -322,6 +323,9 @@ while True:
         data = {"tank_id": 0, "targetTemp" : targetTempVal[valOne], "fed": fedVal[valFive], "packetType": "arduinoVal"}
         testsPassed += sendValue(data, 4)
         
-    
+    elif choice == "7":
+        data = {"fed" : str(fedVal[valFive]), "temp" : str(targetTempVal[valOne])}
+        sendValue(data, None)
+
     elif choice == "8":
         sys.exit()
