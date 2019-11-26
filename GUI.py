@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 from threading import Thread
 
 
-class ReceiveMessage():
+class ReceiveMessage:
     def __init__(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.port = 1025
@@ -31,8 +31,8 @@ class ReceiveMessage():
         while self.running:
             # print("Print message from 1st thread") #TESTING
             # time.sleep(1)
-            print("Waiting to receive on local port %d" % port)
-            buf, address = s.recvfrom(port)
+            print("Waiting to receive on local port %d" % self.port)
+            buf, address = self.s.recvfrom(self.port)
             if not len(buf):
                 break
 
@@ -92,14 +92,16 @@ class Application(Tk):
         labelRecords.grid(row=3, column=0)
         labelTank = ttk.Label(tab2, text="The tank name")
         labelTank.grid(row=4, column=0)
-        labelYear = ttk.Label(tab2, text="year to year")
+        labelYear = ttk.Label(tab2, text="Year")
         labelYear.grid(row=5, column=0)
-        labelMonth = ttk.Label(tab2, text="month to month")
+        labelMonth = ttk.Label(tab2, text="Month")
         labelMonth.grid(row=6, column=0)
-        labelDay = ttk.Label(tab2, text="day to day")
+        labelDay = ttk.Label(tab2, text="Day")
         labelDay.grid(row=7, column=0)
-        labelHour = ttk.Label(tab2, text="hour to Hour")
+        labelHour = ttk.Label(tab2, text="Hour")
         labelHour.grid(row=8, column=0)
+        labelMinute = ttk.Label(tab2, text="Minute to Minute")
+        labelMinute.grid(row=9, column=0)
         # SUBMIT ENTRIES
         entryTank = ttk.Entry(tab2)
         entryTank.grid(row=4, column=0, sticky=W)
@@ -111,17 +113,13 @@ class Application(Tk):
         entryDay.grid(row=7, column=0, sticky=W)
         entryHour = ttk.Entry(tab2)
         entryHour.grid(row=8, column=0, sticky=W)
+        minuteEntry = ttk.Entry(tab2)
+        minuteEntry.grid(row=9, column=0, sticky=W)
+        minuteEntry.insert(0, "14")
         # SUBMIT ENTRIES TWO
-        entryTank2 = ttk.Entry(tab2)
-        entryTank2.grid(row=4, column=1, sticky=W)
-        entryYear2 = ttk.Entry(tab2)
-        entryYear2.grid(row=5, column=1, sticky=W)
-        entryMonth2 = ttk.Entry(tab2)
-        entryMonth2.grid(row=6, column=1, sticky=W)
-        entryDay2 = ttk.Entry(tab2)
-        entryDay2.grid(row=7, column=1, sticky=W)
-        entryHour2 = ttk.Entry(tab2)
-        entryHour2.grid(row=8, column=1, sticky=W)
+        minuteEntry2 = ttk.Entry(tab2)
+        minuteEntry2.grid(row=9, column=1, sticky=W)
+        minuteEntry2.insert(0, "24")
 
         # TEMPERATURE LABEL
         tempLabel = ttk.Label(tab2, text="Temperature")
@@ -152,9 +150,9 @@ class Application(Tk):
 
         # submitRecordsButton = ttk.Button(tab2, text="Submit", command=partial(self.fetchRecords, tab2))
         submitRecordsButton = ttk.Button(tab2, text="Submit",
-                                         command=partial(self.drawTempGraph, tempFrame, [1, 2, 3, 4, 5, 6, 7, 8],
-                                                         [4, 5, 3, 2, 6, 7, 1, 8]))
-        submitRecordsButton.grid(row=9, column=0)
+                                         command=partial(self.fetchRecords,entryTank,entryYear,entryMonth,
+                                                         entryDay,entryHour,minuteEntry,minuteEntry2))
+        submitRecordsButton.grid(row=10, column=0)
 
         # THIRD TAB CONTENTS -------------------------------------------------------------------------------------------
         tab3 = ttk.Frame(tabControl)
@@ -216,22 +214,36 @@ class Application(Tk):
 
         s.close()
 
-    def fetchRecords(self, tank1, year1, month1, day1, week1, hour1, tank2, year2, month2, day2, hour2):
+    def fetchRecords(self, tank, year, month, day, hour, minute1, minute2):
         # REQUEST FOR SENSOR VALS
+        #INITIALIZE UDP
+        # host = 'localHost'
+        # textport = 1026
+        # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # port = int(textport)
+        # server_address = (host, port)
+
+        #print(minute1.get() + " and " + minute2.get())
 
         # start a thread for a udpReceiver which will wait for the sensor values to be sent
-        udpReceive = ReceiveMessage()
-        udpReceiveThread = Thread(target=udpReceive.run)
-        numToReceive = hour2 - hour1 #the number of entries (x values) to be expected based on the range of time given
-        udpReceive.numToReceive = numToReceive
-        udpReceiveThread.start()
+        # udpReceive = ReceiveMessage()
+        # udpReceiveThread = Thread(target=udpReceive.run)
+        # # the number of entries (x values) to be expected based on the range of time given
+        numToReceive = int(minute2.get()) - int(minute1.get())
+        # #udpReceive.numToReceive = numToReceive
+        # udpReceiveThread.start()
+        #print("THe numtoReceive is " + str(numToReceive))
         for x in range(0, numToReceive):
-            
+            time = year.get()+"-"+month.get()+"-"+day.get()+" "+hour.get()+":"+str(x)
+            print(time)
+            toSend = {"packetType" : "requestSensVal", "timeRequested" : time, "tankName" : tank}
+            #s.sendto(str(json.dumps(toSend)).encode('utf-8'), server_address)
+
         # while udpReceive.running:
         #     #do nothing
         #
         # sensorRecords = udpReceive.values
-        udpReceive.terminate()
+        #udpReceive.terminate()
         #return sensorRecords
         # self.drawTempGraph(tab)
         # self.drawMotionGrpah(tab)
