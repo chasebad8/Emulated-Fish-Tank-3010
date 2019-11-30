@@ -249,8 +249,15 @@ class Application(Tk):
 
     def dispenseFood(self, foodNameEntry):
         print("This will dispense food when its working, to tank: "+foodNameEntry.get())
+        host = 'localHost'
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        port = 1027
+        server_address = (host, port)
         try:
-            print("send json to dispense food")
+            print("Feeding now")
+            toSend = {"tank_id": foodNameEntry.get(), "targetTemp": 0, "fed": 1, "packetType" : "arduinoVal"}
+            s.sendto(str(json.dumps(toSend)).encode('utf-8'), server_address)
+            s.close()
         except:
             print("There was an error dispensing the food to tank "+foodNameEntry.get()+", please try again")
 
@@ -258,8 +265,15 @@ class Application(Tk):
 
     def submitTemperature(self, tempEntry, tempNameEntry):
         print("This will change the tank temp to: "+tempEntry.get()+" when working, to tank: "+tempNameEntry.get())
+        host = 'localHost'
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        port = 1027
+        server_address = (host, port)
         try:
             print("send json of new tank temperature")
+            toSend = {"tank_id": tempNameEntry.get(), "targetTemp": int(tempEntry.get()), "fed": 0, "packetType": "arduinoVal"}
+            s.sendto(str(json.dumps(toSend)).encode('utf-8'), server_address)
+            s.close()
         except:
             print("There was an error in sending the new temperature for tank "+tempNameEntry.get()+", please try again")
 
