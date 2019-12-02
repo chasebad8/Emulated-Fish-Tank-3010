@@ -9,6 +9,7 @@ static String fed = "0";
 static int motionCount = 0;
 static int motor = 0;
 static int motorCount = 0;
+static int motorResetCount = 0;
 
 
 //defining the pins and variables for the motor componant
@@ -31,7 +32,7 @@ int sensorVal = 0;
 int relay = 12;
 
 //Defining the time between sending information
-const int time0 = 10000;
+const int time0 = 30000;
 long interrupt;
 
 //Defining pin to RBG color for heater simulation
@@ -65,7 +66,8 @@ void setup() {
   digitalWrite(sameGreen, HIGH);
   digitalWrite(heatRed, LOW);
 
-  targTemp = 25;
+  getTemp();
+  targTemp = 25; 
 }
 
 void loop() {
@@ -215,9 +217,10 @@ void recieveValues(void){
     motor = 0;
     motorCount++;
 
-    if(motorCount == 5){
+    if(motorCount == 4){
       for (int i = 0; i < 5000; i++){
       resetMotor();
+      motorCount = 0;
       }
     }
   }
