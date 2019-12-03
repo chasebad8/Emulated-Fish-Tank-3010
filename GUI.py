@@ -6,18 +6,35 @@ import sqlite3
 from functools import partial
 import socket, sys, time
 import json
+from datetime import datetime
 import matplotlib
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
+import matplotlib.animation as animation
 from threading import Thread
 import threading
 
+sensorXValues = []  # used to store X values fetched from database
+sensorYTempValues = []  # used to store Y values fetched from database
+sensorYMotionValues = []  # used to store Y values fetched from database
+pi1IP = ""
+pi2IP = ""
+#variables for drawing live graphs
+xsTemp = []
+ysTemp = []
+
+#ports:
+#1025 for GUI to Pi1
+#1026 for pi1 to GUI
+#1027 for GUI to pi2
+#1029 for pi2 sending live updated values to GUI
 
 class ReceiveMessage:
     def __init__(self):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.port = 1026
-        self.server_address = ('localhost', self.port)
+        self.server_address = ("", self.port)
         self.s.bind(self.server_address)
         self.running = True
         self.values = [[]]
@@ -29,10 +46,8 @@ class ReceiveMessage:
         self.running = False
 
     def run(self):
-        # do stuff
         while self.running:
-            # print("Print message from 1st thread") #TESTING
-            # time.sleep(1)
+            print("RUNNNING")
             print("Waiting to receive on local port %d" % self.port)
             buf, address = self.s.recvfrom(self.port)
             if not len(buf):
@@ -40,15 +55,55 @@ class ReceiveMessage:
 
             print("Received from %s %s: " % (address, buf))
             self.numReceived += 1
+            vals = json.loads(buf)
+            self.values.append(vals) #IF A RECORD DOESNT EXIST, DOES ANYTHING GET RETURNED OVER UDP???
+            sensorXValues.append(self.numReceived)
+            sensorYTempValues.append(vals["temperature"])
+            sensorYMotionValues.append(vals["motion"])
 
-            self.values.append(json.loads(buf)) #IF A RECORD DOESNT EXIST, DOES ANYTHING GET RETURNED OVER UDP???
 
             if self.numReceived == self.numToReceive:
+                print("RECEIVED THE CORRECT AMOUNT")
                 self.s.close()
                 self.done.set()
                 self.running = False
 
+class LiveValueFeed:
+    def __init__(self):
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.port = 1029
+        self.server_address = ("", self.port)
+        self.s.bind(self.server_address)
+        self.running = True
+        self.values = [[]]
+        self.numToReceive = 0
+        self.numReceived = 0
+        self.done = threading.Event()
 
+    def terminate(self):
+        self.running = False
+
+    def run(self):
+        while self.running:
+            print("Waiting to receive on local port %d" % self.port)
+            buf, address = self.s.recvfrom(self.port)
+            if not len(buf):
+                break
+
+            print("Received from %s %s: " % (address, buf))
+            # self.numReceived += 1
+            vals = json.loads(buf)
+            #self.values.append(vals) #IF A RECORD DOESNT EXIST, DOES ANYTHING GET RETURNED OVER UDP???
+            xsTemp.append(int(vals["timeRecorded"][14:16]))
+            ysTemp.append(vals["temperature"])
+            print("LIVE VALUE RECEIVED")
+            #sensorYMotionValues.append(vals["motion"])
+
+            if self.numReceived == self.numToReceive:
+                print("RECEIVED THE CORRECT AMOUNT")
+                self.s.close()
+                self.done.set()
+                self.running = False
 
 class Application(Tk):
     def __init__(self):
@@ -57,11 +112,11 @@ class Application(Tk):
         self.title("Strawberri E-tank system interface")
         self.minsize(800, 650)
         self.create_widgets()
-        self.sensorXValues = [[1,2,3], [4,5,6], [7,8,9,10]]  # used to store X values fetched from database
-        self.sensorYValues = [[1, 2, 3], [4, 5, 6], [7, 8, 9, 10]]  # used to store Y values fetched from database
         self.sensorValReceive = ReceiveMessage()
         # Thread for receiving sensor values through UDP, will be started and stopped in the appropriate functions
         self.sensorValReceiveThread = Thread(target=self.sensorValReceive.run)
+        self.liveValueReceiver = LiveValueFeed()
+        self.liveValueReceiverThread = Thread(target=self.liveValueReceiver.run)
 
     def create_widgets(self):
         tabControl = ttk.Notebook(self)  # creates tab structure
@@ -93,7 +148,7 @@ class Application(Tk):
         submitButton.grid(row=4, column=1)
 
         #Button to feed animal
-        foodLabel = ttk.Label(tab1, text="Name of tank to give food to: ")
+        foodLabel = ttk.Label(tab1, text="Tank ID to give food to: ")
         foodLabel.grid(row=5,column=0)
         foodEntry = ttk.Entry(tab1)
         foodEntry.grid(row=5, column=1)
@@ -105,7 +160,7 @@ class Application(Tk):
         temperatureLabel.grid(row=7, column=0)
         temperatureEntry = ttk.Entry(tab1)
         temperatureEntry.grid(row=7,column=1)
-        temperatureNameLabel = ttk.Label(tab1, text="Enter name of tank here: ")
+        temperatureNameLabel = ttk.Label(tab1, text="Enter tank ID here: ")
         temperatureNameLabel.grid(row=8, column=0)
         temperatureNameEntry = ttk.Entry(tab1)
         temperatureNameEntry.grid(row=8, column=1)
@@ -150,6 +205,7 @@ class Application(Tk):
         minuteEntry2.grid(row=9, column=1, sticky=W)
         minuteEntry2.insert(0, "24")
 
+
         # TEMPERATURE LABEL
         tempLabel = ttk.Label(tab2, text="Temperature")
         tempLabel.grid(row=0, column=0)
@@ -184,7 +240,7 @@ class Application(Tk):
         submitRecordsButton.grid(row=10, column=0)
         #Button to check if records have been obtained an draw graphs if they have been
         drawGraphsButton = ttk.Button(tab2, text="Draw Graphs",
-                                         command=partial(self.drawRecordGraphs))
+                                         command=partial(self.drawRecordGraphs, tempFrame, motionFrame))
         drawGraphsButton.grid(row=10, column=1)
 
         # THIRD TAB CONTENTS -------------------------------------------------------------------------------------------
@@ -193,23 +249,42 @@ class Application(Tk):
 
         tabControl.pack(expan=1, fill="both")
 
-        labelTemp = ttk.Label(tab3, text="The current temperature is X degrees")
+        labelTemp = ttk.Label(tab3, text="The current temperature of the tank")
         labelTemp.grid(row=0, column=0, padx=120)
-        labelHumid = ttk.Label(tab3, text="The current Humidity is X degrees")
-        labelHumid.grid(row=0, column=1, padx=120)
-        labelMotion = ttk.Label(tab3, text="There is(n't) currently motion in the tank")
-        labelMotion.grid(row=0, column=2, padx=120)
-        labelIR = ttk.Label(tab3, text="There are(n't) currently IR readings in the tank")
-        labelIR.grid(row=0, column=3, padx=120)
+        # labelHumid = ttk.Label(tab3, text="The current Humidity is X degrees")
+        # labelHumid.grid(row=0, column=1, padx=120)
+        labelMotion = ttk.Label(tab3, text="The current motion in the tank")
+        labelMotion.grid(row=0, column=1, padx=120)
+        # labelIR = ttk.Label(tab3, text="There are(n't) currently IR readings in the tank")
+        # labelIR.grid(row=0, column=3, padx=120)
+
 
         frameTemp = ttk.Frame(tab3)
         frameTemp.grid(row=1, column=0)
-        frameHumid = ttk.Frame(tab3)
-        frameHumid.grid(row=1, column=1)
+        # frameHumid = ttk.Frame(tab3)
+        # frameHumid.grid(row=1, column=1)
         frameMotion = ttk.Frame(tab3)
-        frameMotion.grid(row=1, column=2)
-        frameIR = ttk.Frame(tab3)
-        frameIR.grid(row=1, column=3)
+        frameMotion.grid(row=1, column=1)
+        # frameIR = ttk.Frame(tab3)
+        # frameIR.grid(row=1, column=3)
+
+        labelTankIDLive = ttk.Label(tab3, text="Tank ID: ")
+        labelTankIDLive.grid(row=2, column=0, sticky=E)
+        entryTankIDLive = ttk.Entry(tab3)
+        entryTankIDLive.grid(row=2, column=1, sticky=W)
+        startLiveFeedButton = ttk.Button(tab3, text="Start Live Feed", command=partial(self.startLiveFeed))
+        startLiveFeedButton.grid(row=3, column=1)
+
+        # TEMPERATURE GRAPH
+        liveTempGraph = Figure(figsize=(5, 5), dpi=75)
+        liveTempPlot = liveTempGraph.add_subplot(111)
+        #liveTempPlot.plot(xVals, yVals)
+        liveTempCanvas = FigureCanvasTkAgg(liveTempGraph, frameTemp)
+        liveTempCanvas.draw()
+        liveTempCanvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        ani = animation.FuncAnimation(liveTempGraph, self.animate, fargs=(xsTemp, ysTemp, liveTempPlot), interval=30000)
+        plt.show()
 
         #TEST TAB CONTENTS --------------------------------------------------------------------------------------------
         testTab = ttk.Frame(tabControl)
@@ -232,7 +307,8 @@ class Application(Tk):
         testtempControlButton.grid(row=4, column=0)
 
     def enterTankInfo(self, entryID, entryName, entryType, entryLocation):
-        host = 'localHost'
+        # IP of pi1
+        host = "169.254.164.162"
         textport = 1025
 
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -249,13 +325,14 @@ class Application(Tk):
 
     def dispenseFood(self, foodNameEntry):
         print("This will dispense food when its working, to tank: "+foodNameEntry.get())
-        host = 'localHost'
+        #IP of pi2
+        host = "169.254.42.104"
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         port = 1027
         server_address = (host, port)
         try:
             print("Feeding now")
-            toSend = {"tank_id": foodNameEntry.get(), "targetTemp": 0, "fed": 1, "packetType" : "arduinoVal"}
+            toSend = {"tank_id": int(foodNameEntry.get()), "targetTemp": 0, "fed": 1, "packetType" : "arduinoVal"}
             s.sendto(str(json.dumps(toSend)).encode('utf-8'), server_address)
             s.close()
         except:
@@ -265,13 +342,14 @@ class Application(Tk):
 
     def submitTemperature(self, tempEntry, tempNameEntry):
         print("This will change the tank temp to: "+tempEntry.get()+" when working, to tank: "+tempNameEntry.get())
-        host = 'localHost'
+        # IP of pi2
+        host = "169.254.42.104"
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         port = 1027
         server_address = (host, port)
         try:
             print("send json of new tank temperature")
-            toSend = {"tank_id": tempNameEntry.get(), "targetTemp": int(tempEntry.get()), "fed": 0, "packetType": "arduinoVal"}
+            toSend = {"tank_id": int(tempNameEntry.get()), "targetTemp": int(tempEntry.get()), "fed": 0, "packetType": "arduinoVal"}
             s.sendto(str(json.dumps(toSend)).encode('utf-8'), server_address)
             s.close()
         except:
@@ -282,56 +360,58 @@ class Application(Tk):
         # REQUEST FOR SENSOR VALS
         if not self.sensorValReceiveThread.isAlive():
             # first clear the existing values stored
-            del self.sensorXValues[:]
-            del self.sensorYValues[:]
+            del sensorXValues[:]
+            del sensorYTempValues[:]
+            del sensorYMotionValues[:]
             #INITIALIZE UDP
-            # host = 'localHost'
-            # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # port = 1026
-            # server_address = (host, port)
-
-            #print(minute1.get() + " and " + minute2.get())
-
-            # start a thread for a udpReceiver which will wait for the sensor values to be sent
+            host = "169.254.164.162"
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            port = 1025
+            server_address = (host, port)
 
             # the number of entries (x values) to be expected based on the range of time given
             numToReceive = int(minute2.get()) - int(minute1.get())
-            self.sensorValReceive.numToReceive = numToReceive
+            self.sensorValReceive.numToReceive = (numToReceive*2)
+            self.sensorValReceiveThread = Thread(target=self.sensorValReceive.run)
             self.sensorValReceiveThread.start()
 
-            #print("THe numtoReceive is " + str(numToReceive))
-            for x in range(0, numToReceive):
-                time = year.get()+"-"+month.get()+"-"+day.get()+" "+hour.get()+":"+str(x)
+            for x in range(int(minute1.get()), int(minute2.get())):
+                if x<10:
+                    time = year.get() + "-" + month.get() + "-" + day.get() + " " + hour.get() + ":" + "0" + str(x)
+                else:
+                    time = year.get() + "-" + month.get() + "-" + day.get() + " " + hour.get() + ":" + str(x)
                 print(time)
-                toSend = {"packetType" : "requestSensVal", "timeRequested" : time, "tankName" : tank}
+                toSend = {"packetType" : "requestSensVal", "timeRequested" : time}
                 try:
-                    #s.sendto(str(json.dumps(toSend)).encode('utf-8'), server_address)
+                    s.sendto(str(json.dumps(toSend)).encode('utf-8'), server_address)
                     print("sending request for values...")
+                    s.close()
                 except:
                     print("There was an error sending the request for sensor values at time: " + time)
+
         else:
             print("The sensor records are already in the process of being fetched")
 
 
 
-    def drawRecordGraphs(self):
+    def drawRecordGraphs(self, tempFrame, motionFrame):
         print("This will draw the record graphs when its working")
         if self.sensorValReceive.done.is_set():
-            if len(self.sensorXValues) == len(self.sensorYValues):
+            #terminate thread
+            self.sensorValReceive.terminate()
+            if len(sensorXValues) == len(sensorYTempValues):
                 print("dothings")
-                for item in self.sensorXValues:
-                    if len(self.sensorXValues[item]) == len(self.sensorYValues[item]):
-                        self.drawTempGraph(frame, self.sensorXValues[item], self.sensorYValues[item])
+                self.drawTempGraph(tempFrame, sensorXValues, sensorYTempValues)
+                #self.drawMotionGraph(motionFrame, sensorXValues, sensorYMotionValues)
             else:
                 print("There was an error in the sensor data and the graphs could not be printed")
         else:
             print("The sensor values have not yet been received, please try again later")
 
 
-
     def drawTempGraph(self, frame, xVals, yVals):
         try:
-            # TEMPERATURE GRAPH
+            #TEMPERATURE GRAPH
             tempGraph = Figure(figsize=(5, 5), dpi=75)
             tempPlot = tempGraph.add_subplot(111)
             tempPlot.plot(xVals, yVals)
@@ -375,12 +455,28 @@ class Application(Tk):
         else:
             return 1#within range, check passed
 
+    def animate(self, i, xs, ys, myPlot):
+        myPlot.clear()
+        myPlot.plot(xs, ys)
+
+    def startLiveFeed(self):
+        if not self.sensorValReceiveThread.isAlive():
+            print("go")
+            self.liveValueReceiverThread = Thread(target=self.liveValueReceiver.run)
+            self.sensorValReceiveThread.start()
+        else:
+            print("The thread to receive live values is already running")
+
+
+
+
+
 
     #TESTING FUNCTIONS --------------------------------------------------------------------
     def testGraphs(self, frame1, xVals1, yVals1, frame2, xVals2, yVals2, frame3, xVals3, yVals3):
-        self.drawTempGraph(frame1, xVals1, yVals1)
-        self.drawTempGraph(frame2, xVals2, yVals2)
-        self.drawTempGraph(frame3, xVals3, yVals3)
+        self.drawTempGraph(frame1, ['2019-11-30 16:10', '2019-11-30 16:11', '2019-11-30 16:12'], [30,35,37])
+        #self.drawTempGraph(frame2, xVals2, yVals2)
+        #self.drawTempGraph(frame3, xVals3, yVals3)
 
     def testThreading(self):
         udpReceive = ReceiveMessage()
