@@ -88,7 +88,7 @@ while True:
     targTemp = encodeString(hear())
     fed = encodeString(hear())
     timeYes = str(datetime.now())
-    timeYes = timeYes[:-10]
+    timeYes = timeYes[:-6]
     data = {"tank_id": tank, "timeRecorded" : timeYes, "motion" : motion, "temperature" : temp, "targetTemp" : targTemp, "fed": fed, "packetType": "sensorVal"}
     print(data)
     sendPacket(data)

@@ -6,7 +6,7 @@ import json
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 port = 1025
-server_address = ('localhost', port)
+server_address = ('', port)
 s.bind(server_address)
 
 db.initializeDatabase()
