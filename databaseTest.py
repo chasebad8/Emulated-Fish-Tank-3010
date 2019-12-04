@@ -76,16 +76,16 @@ def checkDatabaseSensor(data):
     for i in allSens:
         print("Received: ", i[0], i[1], i[2], i[3], i[4], i[5])
         print("")
-        if i[0] == data["tank_id"] and  i[1] == data["timeRecorded"] and int(i[2]) == int(data["motion"]) and float(i[3]) == float(data["temperature"]) and float(i[4]) == float(data["targetTemp"]) and i[5] == data["fed"]:
+        if int(i[0]) == data["tank_id"] and int(i[1]) == data["timeRecorded"] and int(i[2]) == int(data["motion"]) and float(i[3]) == float(data["temperature"]) and float(i[4]) == float(data["targetTemp"]) and i[5] == data["fed"]:
             print colored("Test PASSED!", 'green')
             print("")
-            time.sleep(1.5)
+            time.sleep(2.5)
             return 1
         
     print colored("Test FAILED", 'red')
     print("The correct values were not in the database")
     print("")
-    time.sleep(1.5)
+    time.sleep(2.5)
     return 0
     
 '''This checks to see if the database contains a the proper entry in the actual db.  If testType = 1 then it checks if a value

@@ -93,7 +93,7 @@ def gatherInfo(s, port, server_address):
 
 #Send sensor values to GUI or Android app
 def sendSensorVal(address, timeRequested):
-    host = 'localHost'
+    host = str(address)
     textport = 1026
                 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -116,8 +116,8 @@ def sendSensorVal(address, timeRequested):
 def sendArduinoVal(address, fed, targetTemp):
     time.sleep(2)
     
-    host = 'localHost'
-    textport = 1026
+    host = str(address)
+    textport = 1027
                 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
