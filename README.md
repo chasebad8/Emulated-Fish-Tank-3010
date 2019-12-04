@@ -2,7 +2,7 @@
 
 Group Members:
 Chase Badalato 101072570
-Chase Fridgen
+Chase Fridgen 101077379
 Haydn Brown
 
 Final Project Due:
