@@ -5,13 +5,17 @@ import socket, sys, time
 import json
 import serial
 
+'''This script sends values that are received from the RpiTwo to the arduino through UART connection'''
+
+#Set up UART
 port = "/dev/ttyACM0"#put your port here
 baudrate = 9600
 ser = serial.Serial(port, baudrate) #initializing the serial connection
 
+#Set up UDP
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 port = 1027
-server_address = ('localhost', port)
+server_address = ('', port)
 s.bind(server_address)
 
 def tell(msg):
@@ -19,7 +23,8 @@ def tell(msg):
     x = msg.encode('ascii') # encode n send
     ser.write(x)
 
-def testThread():
+'''Wait on port 2027 for any UDP information.  If received it will try to convert some JSON values to "Fed" or "Target Temperature" to send to Arduino (Through tell function)'''
+def gatherInfo():
     while True:
 
         print ("Waiting to receive on port %d" % port)
@@ -31,9 +36,12 @@ def testThread():
         print ("Received from %s %s: " % (address, buf))
         jfile = json.loads(buf)
 
-        sendVal = jfile["fed"] + jfile["temp"]
+        sendVal = str(jfile["fed"]) + str(jfile["targetTemp"])
+        
         tell(sendVal)
 
         break
+    
+'''Continuously poll gather info'''
 while True:
-    testThread()
+    gatherInfo()
