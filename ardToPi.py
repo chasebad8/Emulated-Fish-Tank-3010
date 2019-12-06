@@ -44,9 +44,11 @@ def encodeString(msg):
 
 '''Send a JSON packet to the GUI to be update in realtime'''
 def sendPacket(data):
+    #The IP Address of the MAIN DATABASE
     host = '169.254.164.162'
     textport = 1025
-
+    
+    #send the Arduino created values to the database
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     port = int(textport)
     server_address = (host, port)
@@ -57,14 +59,15 @@ def sendPacket(data):
         sendPacketAgain(data)
         
     except: #If the data cannot be sent it fails
-        #print colored("Test FAILED", 'red')
         print("Could not send the requested data")
 
 '''Send a packet of sensor values to RpiOne to get updated into database'''
 def sendPacketAgain(data):
+    #The address of the GUI
     host = '169.254.42.100'
     textport = 1029
 
+    #Send the values to the GUI for live updates!
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     port = int(textport)
     server_address = (host, port)
@@ -79,7 +82,6 @@ def sendPacketAgain(data):
         
 '''Wait until UART sends over values, and then convert them into JSON and send the values over UDP'''
 while True:
-    #thread.start_new_thread(testThread, ())
     tank = encodeString(hear())
     motion = encodeString(hear())
     temp = encodeString(hear())
