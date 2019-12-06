@@ -37,6 +37,7 @@ def initializeDatabase():
         return False
     
 def clearTables():
+    '''Clear all the current tables if they exist'''
     crs.execute('''DROP TABLE IF EXISTS sensorVals;''')
     crs.execute('''DROP TABLE IF EXISTS tanks;''')
     connection.commit()
@@ -48,32 +49,32 @@ def addTank(tank_id, name, location, petType):
     connection.commit()
     
 
-#Add a new sensorValue to the database
+
 def addSensVal(tank_id, timeRecorded, motion, temperature, targetTemp, fed):
+    '''Add a new sensorValue to the database'''
+    
     crs.execute('''INSERT INTO sensorVals VALUES(?, ?, ?, ?, ?, ?);''',(tank_id, timeRecorded, motion, temperature, targetTemp, fed))
     connection.commit()
 
-#print the tank list
 def printTankList():
+    '''Print the current Tank table'''
+    
     crs.execute("SELECT * FROM tanks;")
     tankVals = []
     for row in crs:
-        #print(row)
         tankVals.append(row)
-    #print("")
     return tankVals
 
-#print the snesor value of a certain tank
+'''print the snesor value of a certain tank'''
 def printSensorValList(tank_id):
     crs.execute("SELECT * FROM sensorVals;")
     sensVals = []
     for row in crs:
-        #print(row)
         sensVals.append(row)
         
     return sensVals
         
-#Gets data from UDP connection
+'''Gets data from UDP connection.  Wait until something is received'''
 def gatherInfo(s, port, server_address):
     while True:
 
@@ -86,14 +87,15 @@ def gatherInfo(s, port, server_address):
         print ("Received from %s %s: " % (address, buf ))
         jfile = json.loads(buf)
 
+        #This is where the code decides what to do with the information
         infoPacket = breakDownPacket(address, jfile)
         
         break
       
 
-#Send sensor values to GUI or Android app
+'''Send sensor values to GUI or Android app'''
 def sendSensorVal(address, timeRequested):
-    host = str(address)
+    host = str(address[0])
     textport = 1026
                 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -101,9 +103,11 @@ def sendSensorVal(address, timeRequested):
     port = int(textport)
     server_address = (host, port)
     
+    #Searches the database and if they are there, sends them to the address that send the original request
     print("About to send the following values")
-    time.sleep(2)
+    time.sleep(1)
 
+    #sends all the found values in a row
     crs.execute("SELECT * FROM sensorVals WHERE timeRecorded = ?;",[(str(timeRequested))])
     for row in crs:
         print(row)
@@ -113,28 +117,7 @@ def sendSensorVal(address, timeRequested):
         s.sendto(str(sendIt).encode('utf-8'), server_address)
     s.close()
 
-def sendArduinoVal(address, fed, targetTemp):
-    time.sleep(2)
-    
-    host = str(address)
-    textport = 1027
-                
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    
-    port = int(textport)
-    server_address = (host, port)
-
-    data = {"targetTemp" : targetTemp, "fed": fed}
-    sendIt = json.dumps(data)
-    
-    try:
-        s.sendto(str(sendIt).encode('utf-8'), server_address)
-    
-    except:
-        print("No Connection :/")
-    s.close()
-    
-#Checks JSON "PacketType" to decide what JSON it is
+'''Checks JSON "PacketType" to decide what JSON it is'''
 def breakDownPacket(address, jfile):
     #add a new tank entry
     if jfile["packetType"] == "tank":
@@ -150,6 +133,7 @@ def breakDownPacket(address, jfile):
 
         sendSensorVal(address, jfile["timeRequested"])
     
+    #Should never be called but leaving it here just in case
     elif jfile["packetType"] == "arduinoVal":
         sendArduinoVal(address, jfile["fed"], jfile["targetTemp"])
         
