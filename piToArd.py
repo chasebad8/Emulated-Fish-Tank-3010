@@ -1,3 +1,10 @@
+'''
+Chase Badalato, Chase Fridgen
+101072570, 
+
+Group m2
+SYSC3010 Project
+'''
 import mainDatabase as db
 import sqlite3
 import random
@@ -18,6 +25,7 @@ port = 1027
 server_address = ('', port)
 s.bind(server_address)
 
+'''Send message to Arduino'''
 def tell(msg):
     msg = msg + '\n'
     x = msg.encode('ascii') # encode n send
@@ -27,6 +35,7 @@ def tell(msg):
 def gatherInfo():
     while True:
 
+        #Get a fed val or targetTemp
         print ("Waiting to receive on port %d" % port)
 
         buf, address = s.recvfrom(port)
@@ -35,7 +44,8 @@ def gatherInfo():
 
         print ("Received from %s %s: " % (address, buf))
         jfile = json.loads(buf)
-
+        
+        #The gathered info is then send to Arduino through tell
         sendVal = str(jfile["fed"]) + str(jfile["targetTemp"])
         
         tell(sendVal)
