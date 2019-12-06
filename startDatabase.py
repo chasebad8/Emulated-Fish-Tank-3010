@@ -9,7 +9,9 @@ port = 1025
 server_address = ('', port)
 s.bind(server_address)
 
+db.clearTables()
 db.initializeDatabase()
+
 print('')
 while True:
     db.gatherInfo(s, port, server_address)
