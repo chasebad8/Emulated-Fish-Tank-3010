@@ -15,7 +15,7 @@ import serial
 '''This script sends values that are received from the RpiTwo to the arduino through UART connection'''
 
 #Set up UART
-port = "/dev/ttyACM0"#put your port here
+port = "/dev/ttyACM0"#UART Port
 baudrate = 9600
 ser = serial.Serial(port, baudrate) #initializing the serial connection
 
