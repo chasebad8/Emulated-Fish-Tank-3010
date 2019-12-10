@@ -10,14 +10,15 @@ import socket, sys, time
 import json
 from datetime import datetime
 #import thread
+
 #This connects to our main database
 connection = sqlite3.connect("projectDataBase.db")
 
 #cursor (needed to code in SQL)
 crs = connection.cursor()
 
+'''Initialize the database.  Create tables if they do not exist'''
 def initializeDatabase():
-    '''Initialize the database.  Create tables if they do not exist'''
     
     #Create a new table IF it doesnt exist
     turnOnForeign = """PRAGMA foreign_keys = ON;"""
@@ -36,28 +37,27 @@ def initializeDatabase():
     except:
         return False
     
+'''Clear all the current tables if they exist'''
 def clearTables():
-    '''Clear all the current tables if they exist'''
+
     crs.execute('''DROP TABLE IF EXISTS sensorVals;''')
     crs.execute('''DROP TABLE IF EXISTS tanks;''')
     connection.commit()
     
+ '''Add a new tank entry into the database'''
 def addTank(tank_id, name, location, petType):
-    '''Add a new tank entry into the database'''
-
+    
     crs.execute('''INSERT or IGNORE INTO tanks VALUES(?, ?, ?, ?);''',(tank_id, name, location, petType))
     connection.commit()
     
-
-
+'''Add a new sensorValue to the database'''
 def addSensVal(tank_id, timeRecorded, motion, temperature, targetTemp, fed):
-    '''Add a new sensorValue to the database'''
     
     crs.execute('''INSERT INTO sensorVals VALUES(?, ?, ?, ?, ?, ?);''',(tank_id, timeRecorded, motion, temperature, targetTemp, fed))
     connection.commit()
-
+    
+'''Print the current Tank table'''
 def printTankList():
-    '''Print the current Tank table'''
     
     crs.execute("SELECT * FROM tanks;")
     tankVals = []
@@ -71,19 +71,18 @@ def printSensorValList(tank_id):
     sensVals = []
     for row in crs:
         sensVals.append(row)
-        
     return sensVals
         
 '''Gets data from UDP connection.  Wait until something is received'''
 def gatherInfo(s, port, server_address):
     while True:
-
+        #wait here until a JSON is received
         print ("Waiting to receive on port %d" % port)
 
         buf, address = s.recvfrom(port)
         if not len(buf):
             break
-
+        #Convert the JSON to dictionary
         print ("Received from %s %s: " % (address, buf ))
         jfile = json.loads(buf)
 
@@ -95,6 +94,7 @@ def gatherInfo(s, port, server_address):
 
 '''Send sensor values to GUI or Android app'''
 def sendSensorVal(address, timeRequested):
+    #The address that requested a sensor value is the address that the found values will be sent back to
     host = str(address[0])
     textport = 1026
                 
@@ -119,6 +119,7 @@ def sendSensorVal(address, timeRequested):
 
 '''Checks JSON "PacketType" to decide what JSON it is'''
 def breakDownPacket(address, jfile):
+    
     #add a new tank entry
     if jfile["packetType"] == "tank":
         addTank(jfile["tank_id"], jfile["name"], jfile["location"], jfile["petType"])
