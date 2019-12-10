@@ -1,6 +1,8 @@
-#include "dht.h"
+// Chase Fridgen 101077379
+// SYSC 3310
+// Menu for all functions coming from the arduino system
 
-//Menu for all functions coming from the arduino system
+#include "dht.h"
 
 
 //defining the pins for the motor
@@ -26,7 +28,8 @@ long interrupt;
 
 int stepCount = 0;
 
-
+// setup() is where all the pins are initialized as input or outputs and given
+// their initial values.
 void setup() {
     Serial.begin(9600);
     while (!Serial) ; 
@@ -52,6 +55,8 @@ void setup() {
    menuOption = menu();
 }
 
+// loop() is the main funtion in the menu as it takes in the input from the 
+// serial monitor (1-4) and runs the desired suntion based on that
 void loop() {
   if (menuOption == '1'){
     runMotor();
@@ -84,6 +89,7 @@ void loop() {
   
 }
 
+// runMotor() actiavtes the stepper motor in a clockwise direction
 void runMotor(void){
    if(currStep == 0){
     digitalWrite(bluePin, HIGH);
@@ -117,6 +123,8 @@ void runMotor(void){
   delay(4);
 }
 
+// resetMotor() actiavtes the stepper motor in a counter-clockwise direction
+// therefore reseting it
 void resetMotor(void){
    if(resetStep == 0){
     digitalWrite(bluePin, LOW);
@@ -150,6 +158,8 @@ void resetMotor(void){
   delay(4);
 }
 
+// getTemp() reads the temerature in from the DHT11
+// Temperature sensor
 void getTemp(void){
   int temp = DHT.read11(DHT11_PIN);
   Serial.print("Temperature = ");
@@ -159,6 +169,8 @@ void getTemp(void){
   delay(5000);
 }
 
+// runIr() is the funtion for the PIR sensor,
+// it increments 1 every time motion is detected
 void runIr(void){
   sensorVal = digitalRead(sensor);
 
@@ -175,7 +187,9 @@ void runIr(void){
   
 }
 
-
+// menu() is the interface that promptes the user for an input on the serial
+// monitor and waits for the input, then changes the menuoption for the desired
+// funtion depending on said input
 char menu()
 {
 
