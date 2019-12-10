@@ -1,5 +1,10 @@
+//Chase Fridgen 101077379
+//SYSC 3010
+//Driver to be flashed onto the arduino for animal enclosure functionality
+
 #include "dht.h"
 
+//defining static variables
 static String tank = "0";
 static String motion;
 static String temp;
@@ -28,9 +33,6 @@ dht DHT;
 int sensor = 8;
 int sensorVal = 0;
 
-//defining the pin for the Relay module
-int relay = 12;
-
 //Defining the time between sending information
 const int time0 = 30000;
 long interrupt;
@@ -40,8 +42,10 @@ int coolBlue = 10;
 int sameGreen = 11;
 int heatRed = 12;
 
-
-void setup() {
+// setup() is where all the pins are initialized as input or outputs and given
+// their initial values.
+void setup() 
+{
   Serial.begin(9600); // begin transmission
   
   //Initialize pins at the ports as outputs for the motor 
@@ -67,15 +71,18 @@ void setup() {
   digitalWrite(heatRed, LOW);
 
   getTemp();
-  targTemp = 25; 
+  targTemp = 25;
 }
 
-void loop() {
-  runIr();
-  recieveValues();
-  heater();
+// loop() is the main funtion in the arduino driver as it is constantly looping and
+//reeading-in/sending the sensor values
+void loop() 
+{
+  runIr(); // constantly running PIR
+  recieveValues(); // constanlty waiting to recieve from RPI's
+  heater(); // constantly compariong values for heater
   
-  if (millis() - interrupt > time0){
+  if (millis() - interrupt > time0){ // every 30 seconds this if statements sends the sensor values through UART
     motion =(String) motionCount;
     sendValues();
     fed = "0";
@@ -83,7 +90,9 @@ void loop() {
   }
 }
 
-void sendValues(){
+// sendValues() sends all the values to the RPI' through UART
+void sendValues() 
+{
   getTemp();
   
   Serial.println(tank);
@@ -94,7 +103,9 @@ void sendValues(){
   interrupt = millis();
 }
 
-void runMotor(void){
+// runMotor() actiavtes the stepper motor in a clockwise direction
+void runMotor(void)
+{
    if(currStep == 0){
     digitalWrite(bluePin, HIGH);
     digitalWrite(pinkPin, LOW);
@@ -126,7 +137,10 @@ void runMotor(void){
   delay(4);
 }
 
-void resetMotor(void){
+// resetMotor() actiavtes the stepper motor in a counter-clockwise direction
+// therefore reseting it 
+void resetMotor(void)
+{
    if(resetStep == 0){
     digitalWrite(bluePin, LOW);
     digitalWrite(pinkPin, LOW);
@@ -158,18 +172,23 @@ void resetMotor(void){
   delay(4);
 }
 
-void getTemp(void){
+// getTemp() reads the temerature in from the DHT11
+// Temperature sensor
+void getTemp(void)
+{
   int temperature = DHT.read11(DHT11_PIN);
   temp = (String) DHT.temperature;
   tempInt =(int) DHT.temperature;
   delay(500);
 }
 
+// runIr() is the funtion for the PIR sensor,
+// it increments 1 every time motion is detected
 void runIr(void){
   sensorVal = digitalRead(sensor);
 
-  if(sensorVal == HIGH){
-    motionCount++;
+  if(sensorVal == HIGH){ // motion is detected
+    motionCount++; // count up
     delay(500);
   }
   else{
@@ -177,47 +196,55 @@ void runIr(void){
   }
 }
 
-void heater(void){
-  if (targTemp > tempInt){
-    digitalWrite(heatRed, HIGH);
+// heater() is the funtion that simulates what a heater
+// would do to the enclosure with an RBG LED light
+void heater(void)
+{
+  if (targTemp > tempInt){       // if the target temp is higher than the real temp
+    digitalWrite(heatRed, HIGH); //set to heat (RED)
     digitalWrite(coolBlue, LOW);
     digitalWrite(sameGreen, LOW);
   }
-  else if (targTemp < tempInt){
-    digitalWrite(heatRed, LOW);
+  else if (targTemp < tempInt){ // if the target temp is less than the real temp
+    digitalWrite(heatRed, LOW); //set to cool (BLUE)
     digitalWrite(coolBlue, HIGH);
     digitalWrite(sameGreen, LOW);
   }
   else{
-    digitalWrite(heatRed, LOW);
-    digitalWrite(coolBlue, LOW);
+    digitalWrite(heatRed, LOW); // if the target temp and real temp are the same
+    digitalWrite(coolBlue, LOW);// keep the same (GREEN)
     digitalWrite(sameGreen, HIGH);
   }
 }
 
-void recieveValues(void){
+// receieveValues() is the funtion that recieves input from the RPI's
+// through UART connection. it then takes in the values and breaks them into
+// the proper componants and runs motor or changes the target temp of the
+// system
+void recieveValues(void)
+{
   String val;
-  while (Serial.available() > 0) {
+  while (Serial.available() > 0) { 
     val = val + (char)Serial.read(); // read data byte by byte and store it
   }
 
   String motorStr = val.substring(0,1);
-  motor = motorStr.toInt();
-  int targTempFake = val.toInt() - (motor * 100);
+  motor = motorStr.toInt();// geting the portion sent indicating whether the motor should run or not
+  int targTempFake = val.toInt() - (motor * 100); // Getting the portion sent indicating the target temperature
   
-  if (targTempFake > 0){
+  if (targTempFake > 0){ // ensureing the sent target temp is above 0 degrees (for safety reasons)
     targTemp = targTempFake;
   }
 
-  if(motor == 1){
+  if(motor == 1){ // if user sent a 1 the motor will run for 5 seconds
     for (int i = 0; i < 1000; i++){
       runMotor();
     }
-    fed = "1";
+    fed = "1"; // fed gets set to 1
     motor = 0;
     motorCount++;
 
-    if(motorCount == 4){
+    if(motorCount == 4){ // after being fed 4 times the motor resets back to original feediung state
       for (int i = 0; i < 5000; i++){
       resetMotor();
       motorCount = 0;
