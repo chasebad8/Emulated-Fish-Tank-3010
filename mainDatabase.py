@@ -17,7 +17,8 @@ connection = sqlite3.connect("projectDataBase.db")
 #cursor (needed to code in SQL)
 crs = connection.cursor()
 
-'''Initialize the database.  Create tables if they do not exist'''
+'''Initialize the database.  Create tables if they do not exist
+   Return: Boolean of successfullness'''
 def initializeDatabase():
     
     #Create a new table IF it doesnt exist
@@ -56,7 +57,8 @@ def addSensVal(tank_id, timeRecorded, motion, temperature, targetTemp, fed):
     crs.execute('''INSERT INTO sensorVals VALUES(?, ?, ?, ?, ?, ?);''',(tank_id, timeRecorded, motion, temperature, targetTemp, fed))
     connection.commit()
     
-'''Print the current Tank table'''
+'''Print the current Tank table
+   Return: dictionary of tank values'''
 def printTankList():
     
     crs.execute("SELECT * FROM tanks;")
@@ -65,7 +67,8 @@ def printTankList():
         tankVals.append(row)
     return tankVals
 
-'''print the snesor value of a certain tank'''
+'''print the snesor value of a certain tank
+   Return: dictionary of sensor values'''
 def printSensorValList(tank_id):
     crs.execute("SELECT * FROM sensorVals;")
     sensVals = []
@@ -73,7 +76,10 @@ def printSensorValList(tank_id):
         sensVals.append(row)
     return sensVals
         
-'''Gets data from UDP connection.  Wait until something is received'''
+'''Gets data from UDP connection.  Wait until something is received
+    Param: s > Socket, required to use UDP
+    Param: port > the port that will be used as the main interceptor of information
+    Param: server_address > the server address that it is looking to receive from (anywhere)'''
 def gatherInfo(s, port, server_address):
     while True:
         #wait here until a JSON is received
@@ -92,7 +98,9 @@ def gatherInfo(s, port, server_address):
         break
       
 
-'''Send sensor values to GUI or Android app'''
+'''Send sensor values to GUI or Android app
+   Param: address > The address that the sensor value should be sent to
+   Param: timeRequested > The time that should be searched in the database'''
 def sendSensorVal(address, timeRequested):
     #The address that requested a sensor value is the address that the found values will be sent back to
     host = str(address[0])
@@ -117,7 +125,9 @@ def sendSensorVal(address, timeRequested):
         s.sendto(str(sendIt).encode('utf-8'), server_address)
     s.close()
 
-'''Checks JSON "PacketType" to decide what JSON it is'''
+'''Checks JSON "PacketType" to decide what JSON it is
+   Param: address > Address received from
+   Param: jfile > JFile received'''
 def breakDownPacket(address, jfile):
     
     #add a new tank entry
